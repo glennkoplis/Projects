@@ -1,0 +1,132 @@
+## Load library
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+library(ggstatsplot)
+library(ggplot2)
+library(dplyr)
+library(skimr)
+```
+
+## Import dataset files to R
+
+```{r message=FALSE, warning=FALSE}
+daily_activity <-read_csv("dailyActivity_merged.csv")
+daily_sleep <-read_csv("sleepDay_merged.csv")
+```
+
+## Inspect loaded dataset
+
+```{r}
+head(daily_activity)
+head(daily_sleep)
+```
+## Inspect columns of loaded dataset
+
+```{r}
+colnames(daily_activity)
+colnames(daily_sleep)
+```
+
+## Convert dates to date type
+
+```{r}
+daily_activity1 <-daily_activity %>%
+  mutate_at(vars(Id), as.character) %>%
+  mutate_at(vars(ActivityDate), as.Date, format = "%m/%d/%y") %>%
+  rename("Day"="ActivityDate") 
+daily_sleep1 <-daily_sleep %>%
+  mutate_at(vars(Id), as.character) %>%
+  mutate_at(vars(SleepDay), as.Date, format = "%m/%d/%y") %>%
+  rename("Day"="SleepDay")
+head(daily_activity1)
+head(daily_sleep1)
+```
+
+## Join datasets to one dataset 
+
+```{r}
+daily_data <-daily_sleep1 %>%
+  right_join(daily_activity1, by=c("Id","Day")) %>%
+  mutate(Weekday = weekdays(as.Date(Day, "m/%d/%Y")))
+```
+
+## Check for duplicated and null data
+
+```{r daily_data}
+daily_data <-daily_data[!duplicated(daily_data), ]
+sum(is.na(daily_data))
+n_distinct(daily_data$Id)
+```
+
+## Check for unique IDs
+
+```{r}
+n_unique(daily_activity$Id)
+n_unique(daily_sleep$Id)
+```
+## Gather the summarized data
+
+```{r}
+daily_data %>%
+  select(Calories,TotalMinutesAsleep, TotalDistance, TotalSteps, VeryActiveMinutes, FairlyActiveMinutes, SedentaryMinutes) %>%
+  summary()
+```
+
+## Display Bar Chart for Average steps per Day
+
+```{r}
+average_steps <- daily_data %>%
+  group_by(Weekday) %>%
+  summarize(Average_steps = mean(TotalSteps, na.rm = TRUE))
+ggplot(average_steps, aes(x = reorder(Weekday, Average_steps), y = Average_steps)) +
+  geom_bar(stat = "identity", fill = "darkgreen") +
+  labs(x = "Weekdays", y = "Average Steps", title="Average steps per Day") 
+```
+
+
+## Display Plot with correlation for Calories burned per Very Active Minutes
+
+```{r}
+ggscatterstats(
+  data = daily_data,
+  x=VeryActiveMinutes,
+  y=Calories,
+  type="parametric"
+) + labs(title="Very Active Minutes vs Calories")
+```
+
+## Display Plot with correlation for Calories burned per Fairly Active Minutes 
+```{r}
+ggscatterstats(
+  data = daily_data,
+  x=FairlyActiveMinutes,
+  y=Calories,
+  type="parametric"
+) + labs(title="Fairly Active Minutes vs Calories")
+```
+## Display Plot with correlation for Calories burned versus Total Minutes Asleep
+
+```{r}
+ggscatterstats(
+  data = daily_data,
+  x=Calories ,
+  y=TotalMinutesAsleep    ,
+  type="parametric"
+) + labs(title="Calories vs TotalMinutesAsleep")
+```
+
+## Display Plot with correlation for Sedentary Minutes versus Total Minutes Asleep
+
+```{r}
+ggscatterstats(
+  data = daily_data,
+  x=SedentaryMinutes,
+  y=TotalMinutesAsleep    ,
+  type="parametric"
+) + labs(title="SedentaryMinutes vs TotalMinutesAsleep")
+```
+
+
+
